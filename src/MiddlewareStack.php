@@ -14,14 +14,14 @@ final class MiddlewareStack
      *
      * @var MiddlewareStack
      */
-    protected $next;
+    private $next;
 
     /**
      * Middleware in this MiddlewareStack
      *
      * @var Middleware
      */
-    protected $middleware;
+    private $middleware;
 
     /**
      * Construct the first middleware in this MiddlewareStack

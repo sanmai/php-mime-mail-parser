@@ -15,42 +15,42 @@ final class Attachment
     /**
      * @var string $filename Filename
      */
-    protected $filename;
+    private $filename;
 
     /**
      * @var string $contentType Mime Type
      */
-    protected $contentType;
+    private $contentType;
 
     /**
      * @var string $content File Content
      */
-    protected $content;
+    private $content;
 
     /**
      * @var string $contentDisposition Content-Disposition (attachment or inline)
      */
-    protected $contentDisposition;
+    private $contentDisposition;
 
     /**
      * @var string $contentId Content-ID
      */
-    protected $contentId;
+    private $contentId;
 
     /**
      * @var array $headers An Array of the attachment headers
      */
-    protected $headers;
+    private $headers;
 
     /**
      * @var resource $stream
      */
-    protected $stream;
+    private $stream;
 
     /**
      * @var string $mimePartStr
      */
-    protected $mimePartStr;
+    private $mimePartStr;
 
     /**
      * @var integer $maxDuplicateNumber
@@ -155,7 +155,7 @@ final class Attachment
      * @param string $fileName  Complete path to the file.
      * @return string           The suffixed file name.
      */
-    protected function suffixFileName(string $fileName): string
+    private function suffixFileName(string $fileName): string
     {
         $pathInfo = pathinfo($fileName);
         $dirname = $pathInfo['dirname'].DIRECTORY_SEPARATOR;
@@ -201,9 +201,7 @@ final class Attachment
     {
         if ($this->content === null) {
             fseek($this->stream, 0);
-            while (($buf = $this->read()) !== false) {
-                $this->content .= $buf;
-            }
+            $this->content = stream_get_contents($this->stream);
         }
 
         return $this->content;

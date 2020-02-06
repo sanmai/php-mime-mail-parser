@@ -20,45 +20,47 @@ final class Parser implements ParserContract
     const ATTACHMENT_DUPLICATE_SUFFIX = 'DuplicateSuffix';
     const ATTACHMENT_RANDOM_FILENAME  = 'RandomFilename';
 
+    private const MAILPARSE_BUFSIZ = 4096;
+
     /**
      * PHP MimeParser Resource ID
      *
      * @var resource $resource
      */
-    protected $resource;
+    private $resource;
 
     /**
      * A file pointer to email
      *
      * @var resource $stream
      */
-    protected $stream;
+    private $stream;
 
     /**
      * A text of an email
      *
      * @var string $data
      */
-    protected $data;
+    private $data;
 
     /**
      * Parts of an email
      *
      * @var array $parts
      */
-    protected $parts;
+    private $parts;
 
     /**
      * @var CharsetManager object
      */
-    protected $charset;
+    private $charset;
 
     /**
      * Valid stream modes for reading
      *
      * @var array
      */
-    protected static $readableModes = [
+    private static $readableModes = [
         'r', 'r+', 'w+', 'a+', 'x+', 'c+', 'rb', 'r+b', 'w+b', 'a+b',
         'x+b', 'c+b', 'rt', 'r+t', 'w+t', 'a+t', 'x+t', 'c+t'
     ];
@@ -68,7 +70,7 @@ final class Parser implements ParserContract
      *
      * @var MiddlewareStack
      */
-    protected $middlewareStack;
+    private $middlewareStack;
 
     /**
      * Parser constructor.
@@ -96,6 +98,7 @@ final class Parser implements ParserContract
         if (is_resource($this->stream)) {
             fclose($this->stream);
         }
+
         // clear the MailParse resource
         if (is_resource($this->resource)) {
             mailparse_msg_free($this->resource);
@@ -111,21 +114,9 @@ final class Parser implements ParserContract
      */
     public function setPath(string $path): ParserContract
     {
-        $file = fopen($path, 'r');
-        fseek($file, -1, SEEK_END);
-        if (fread($file, 1) != "\n") {
-            fseek($file, 0);
-            // MIME expects data to end with a new line, and setStream() will fix that for us
-            return $this->setStream($file);
-        }
-        fclose($file);
-
-        // should parse message incrementally from file
-        $this->resource = mailparse_msg_parse_file($path);
         $this->stream = fopen($path, 'r');
-        $this->parse();
 
-        return $this;
+        return $this->setStream($this->stream);
     }
 
     /**
@@ -149,20 +140,19 @@ final class Parser implements ParserContract
         $tmp_fp = self::tmpfile();
 
         stream_copy_to_stream($stream, $tmp_fp);
-
-        if (fread($tmp_fp, 1) != "\n") {
-            fwrite($tmp_fp, PHP_EOL);
-        }
-
-        fseek($tmp_fp, 0);
-        $this->stream = &$tmp_fp;
-
         fclose($stream);
+
+        // Ensure the stream always ends with a new line
+        fwrite($tmp_fp, PHP_EOL);
+        fseek($tmp_fp, 0);
+
+        $this->stream = $tmp_fp;
+
 
         $this->resource = mailparse_msg_create();
         // parses the message incrementally (low memory usage but slower)
         while (!feof($this->stream)) {
-            mailparse_msg_parse($this->resource, fread($this->stream, 2082));
+            mailparse_msg_parse($this->resource, fread($this->stream, self::MAILPARSE_BUFSIZ));
         }
         $this->parse();
 
@@ -213,7 +203,7 @@ final class Parser implements ParserContract
      *
      * @return void
      */
-    protected function parse()
+    private function parse()
     {
         $structure = mailparse_msg_get_structure($this->resource);
         $this->parts = [];
@@ -258,7 +248,7 @@ final class Parser implements ParserContract
     public function getHeader($name): ?string
     {
         $rawHeader = $this->getRawHeader($name);
-        if ($rawHeader === false) {
+        if ($rawHeader === null) {
             return null;
         }
 
@@ -275,15 +265,10 @@ final class Parser implements ParserContract
     {
         if (isset($this->parts[1])) {
             $headers = $this->getPart('headers', $this->parts[1]);
-            foreach ($headers as &$value) {
-                if (is_array($value)) {
-                    foreach ($value as &$v) {
-                        $v = $this->decodeSingleHeader($v);
-                    }
-                } else {
-                    $value = $this->decodeSingleHeader($value);
-                }
-            }
+
+            array_walk_recursive($headers, function (&$value) {
+                $value = $this->decodeSingleHeader($value);
+            });
 
             return $headers;
         } else {
@@ -317,7 +302,7 @@ final class Parser implements ParserContract
      * @param $part Object
      * @throws Exception
      */
-    protected function getPartHeader(&$part): string
+    private function getPartHeader(&$part): string
     {
         $header = '';
         if ($this->stream) {
@@ -334,7 +319,7 @@ final class Parser implements ParserContract
      * @return String Mime Header Part
      * @param $part Array
      */
-    protected function getPartHeaderFromFile(&$part): string
+    private function getPartHeaderFromFile(&$part): string
     {
         $start = $part['starting-pos'];
         $end = $part['starting-pos-body'];
@@ -349,7 +334,7 @@ final class Parser implements ParserContract
      * @return String Mime Header Part
      * @param $part Array
      */
-    protected function getPartHeaderFromText(&$part): string
+    private function getPartHeaderFromText(&$part): string
     {
         $start = $part['starting-pos'];
         $end = $part['starting-pos-body'];
@@ -365,7 +350,7 @@ final class Parser implements ParserContract
      * @param string $parentPartId
      * @return bool
      */
-    protected function partIdIsChildOfPart($partId, $parentPartId): bool
+    private function partIdIsChildOfPart($partId, $parentPartId): bool
     {
         $parentPartId = $parentPartId.'.';
         return substr($partId, 0, strlen($parentPartId)) == $parentPartId;
@@ -377,7 +362,7 @@ final class Parser implements ParserContract
      * @param string $checkPartId
      * @return bool
      */
-    protected function partIdIsChildOfAnAttachment($checkPartId): bool
+    private function partIdIsChildOfAnAttachment($checkPartId): bool
     {
         foreach ($this->parts as $partId => $part) {
             if ($this->getPart('content-disposition', $part) == 'attachment') {
@@ -438,7 +423,7 @@ final class Parser implements ParserContract
      *
      * @return string
      */
-    protected function getEmbeddedData(string $contentId): string
+    private function getEmbeddedData(string $contentId): string
     {
         $embeddedData = 'data:';
 
@@ -464,7 +449,7 @@ final class Parser implements ParserContract
     public function getAddresses(string $name): iterable
     {
         $value = $this->getRawHeader($name);
-        $value = (is_array($value)) ? $value[0] : $value;
+        $value = is_array($value) ? $value[0] : $value;
         $addresses = mailparse_rfc822_parse_addresses($value);
         foreach ($addresses as $i => $item) {
             $addresses[$i]['display'] = $this->decodeHeader($item['display']);
@@ -604,7 +589,7 @@ final class Parser implements ParserContract
      * @return resource Mime Body Part
      * @throws Exception
      */
-    protected function getAttachmentStream(&$part)
+    private function getAttachmentStream(&$part)
     {
         $temp_fp = self::tmpfile();
 
@@ -641,7 +626,7 @@ final class Parser implements ParserContract
      *
      * @return string The decoded string
      */
-    protected function decodeContentTransfer(string $encodedString, $encodingType)
+    private function decodeContentTransfer(string $encodedString, $encodingType)
     {
         if (is_array($encodingType)) {
             $encodingType = $encodingType[0];
@@ -664,7 +649,7 @@ final class Parser implements ParserContract
      *
      * @return string
      */
-    protected function decodeHeader($input): ?string
+    private function decodeHeader($input): ?string
     {
         //Sometimes we have 2 label From so we take only the first
         if (is_array($input)) {
@@ -681,7 +666,7 @@ final class Parser implements ParserContract
      *
      * @return string
      */
-    protected function decodeSingleHeader(?string $input): ?string
+    private function decodeSingleHeader(?string $input): ?string
     {
         // For each encoded-word...
         while (preg_match('/(=\?([^?]+)\?(q|b)\?([^?]*)\?=)((\s+)=\?)?/i', $input, $matches)) {
@@ -719,7 +704,7 @@ final class Parser implements ParserContract
      *
      * @return string
      */
-    protected function getPartCharset($part): string
+    private function getPartCharset($part): string
     {
         return $this->charset->getCharsetAlias($part['charset']);
     }
@@ -732,7 +717,7 @@ final class Parser implements ParserContract
      *
      * @return string|array|null
      */
-    protected function getPart($type, $parts)
+    private function getPart($type, $parts)
     {
         return isset($parts[$type]) ? $parts[$type] : null;
     }
@@ -744,7 +729,7 @@ final class Parser implements ParserContract
      *
      * @return string
      */
-    protected function getPartBody(&$part): string
+    private function getPartBody(&$part): string
     {
         $body = '';
         if ($this->stream) {
@@ -763,7 +748,7 @@ final class Parser implements ParserContract
      *
      * @return string Mime Body Part
      */
-    protected function getPartBodyFromFile(&$part)
+    private function getPartBodyFromFile(&$part)
     {
         $start = $part['starting-pos-body'];
         $end = $part['ending-pos-body'];
@@ -783,7 +768,7 @@ final class Parser implements ParserContract
      *
      * @return string Mime Body Part
      */
-    protected function getPartBodyFromText(&$part)
+    private function getPartBodyFromText(&$part)
     {
         $start = $part['starting-pos-body'];
         $end = $part['ending-pos-body'];
@@ -798,7 +783,7 @@ final class Parser implements ParserContract
      *
      * @return string
      */
-    protected function getPartComplete(&$part)
+    private function getPartComplete(&$part)
     {
         $body = '';
         if ($this->stream) {
@@ -817,7 +802,7 @@ final class Parser implements ParserContract
      *
      * @return string Mime Content
      */
-    protected function getPartFromFile(&$part)
+    private function getPartFromFile(&$part)
     {
         $start = $part['starting-pos'];
         $end = $part['ending-pos'];
@@ -837,7 +822,7 @@ final class Parser implements ParserContract
      *
      * @return string Mime Content
      */
-    protected function getPartFromText(&$part)
+    private function getPartFromText(&$part)
     {
         $start = $part['starting-pos'];
         $end = $part['ending-pos'];
