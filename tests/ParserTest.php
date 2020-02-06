@@ -1797,51 +1797,46 @@ variances available &nbsp;</div></body></html>'
         $this->assertTrue(isset($mimePart[0]) === false);
     }
 
-    private const FILE_DATA_WITHOUT_EOL = 'From: mail@exemple.com
-To: mail@exemple.com, mail2@exemple3.com, mail3@exemple2.com
-Subject: =?windows-1251?Q?occurs_when_divided_into_an_array?=
- =?windows-1251?Q?=2C_and_the_last_e_of_the_array!_=CF=F3=F2?=
- =?windows-1251?Q?=B3=ED_=F5=F3=E9=EB=EE!!!!!!?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+    public function testFileWithoutEndOfLineHasNoNewlineAtTheEnd()
+    {
+        $file = __DIR__.'/mails/without-eol.bin';
 
-mini plain body';
+        $file = fopen($file, 'r');
+        fseek($file, -1, SEEK_END);
+        $lastChar = fread($file, 1);
+        fclose($file);
+
+        $this->assertNotSame("\n", $lastChar);
+        $this->assertSame("y", $lastChar);
+    }
 
     public function testParsingFileWithoutEndOfLineFromText()
     {
-        $file = self::FILE_DATA_WITHOUT_EOL;
+        $file = __DIR__.'/mails/without-eol.bin';
 
         $ParserByText = new Parser();
-        $ParserByText->setText($file);
+        $ParserByText->setText(file_get_contents($file));
         $this->assertStringContainsString('mini plain body', $ParserByText->getMessageBody('text'));
     }
 
     public function testParsingFileWithoutEndOfLineFromPath()
     {
-        $emailDir = $this->tempdir('no_eol');
-
-        $tmpFilename = $emailDir.'test.eml';
-        file_put_contents($tmpFilename, self::FILE_DATA_WITHOUT_EOL);
-
-        $filesize = filesize($tmpFilename);
+        $file = __DIR__.'/mails/without-eol.bin';
+        $filesize = filesize($file);
 
         $ParserByPath = new Parser();
-        $ParserByPath->setPath($tmpFilename);
+        $ParserByPath->setPath($file);
 
         $this->assertStringContainsString('mini plain body', $ParserByPath->getMessageBody('text'));
-        $this->assertSame($filesize, filesize($tmpFilename));
+        $this->assertSame($filesize, filesize($file));
     }
 
     public function testParsingFileWithoutEndOfLineFromStream()
     {
-        $file = self::FILE_DATA_WITHOUT_EOL;
+        $file = __DIR__.'/mails/without-eol.bin';
 
         $ParserByStream = new Parser();
-        $temp = tmpfile();
-        fwrite($temp, $file);
-        rewind($temp);
-        $ParserByStream->setStream($temp);
+        $ParserByStream->setStream(fopen($file, 'r'));
         $this->assertStringContainsString('mini plain body', $ParserByStream->getMessageBody('text'));
     }
 
