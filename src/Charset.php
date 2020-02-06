@@ -2,7 +2,7 @@
 
 use PhpMimeMailParser\Contracts\CharsetManager;
 
-class Charset implements CharsetManager
+final class Charset implements CharsetManager
 {
     /**
      * Charset Aliases
@@ -344,7 +344,7 @@ class Charset implements CharsetManager
         if (array_key_exists($charset, $this->charsetAlias)) {
             return $this->charsetAlias[$charset];
         }
-        
+
         return 'us-ascii';
     }
 

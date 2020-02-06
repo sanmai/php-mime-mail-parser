@@ -3,6 +3,7 @@
 namespace PhpMimeMailParser;
 
 use PhpMimeMailParser\Contracts\CharsetManager;
+use PhpMimeMailParser\Contracts\Parser as ParserContract;
 
 /**
  * Parser of php-mime-mail-parser
@@ -10,7 +11,7 @@ use PhpMimeMailParser\Contracts\CharsetManager;
  * Fully Tested Mailparse Extension Wrapper for PHP 5.4+
  *
  */
-class Parser
+final class Parser implements ParserContract
 {
     /**
      * Attachment filename argument option for ->saveAttachments().
@@ -108,7 +109,7 @@ class Parser
      *
      * @return Parser MimeMailParser Instance
      */
-    public function setPath($path)
+    public function setPath(string $path): ParserContract
     {
         $file = fopen($path, 'r');
         fseek($file, -1, SEEK_END);
@@ -135,7 +136,7 @@ class Parser
      * @return Parser MimeMailParser Instance
      * @throws Exception
      */
-    public function setStream($stream)
+    public function setStream($stream): ParserContract
     {
         // streams have to be cached to file first
         $meta = @stream_get_meta_data($stream);
@@ -187,10 +188,8 @@ class Parser
      * Set the email text
      *
      * @param string $data
-     *
-     * @return Parser MimeMailParser Instance
      */
-    public function setText($data)
+    public function setText(string $data): ParserContract
     {
         if (empty($data)) {
             throw new Exception('You must not call MimeMailParser::setText with an empty string parameter');
@@ -232,7 +231,7 @@ class Parser
      *
      * @param string $name Header name (case-insensitive)
      *
-     * @return string|bool
+     * @return string|null|array
      * @throws Exception
      */
     public function getRawHeader($name)
@@ -241,7 +240,7 @@ class Parser
         if (isset($this->parts[1])) {
             $headers = $this->getPart('headers', $this->parts[1]);
 
-            return isset($headers[$name]) ? $headers[$name] : false;
+            return isset($headers[$name]) ? $headers[$name] : null;
         } else {
             throw new Exception(
                 'setPath() or setText() or setStream() must be called before retrieving email headers.'
@@ -256,11 +255,11 @@ class Parser
      *
      * @return string|bool
      */
-    public function getHeader($name)
+    public function getHeader($name): ?string
     {
         $rawHeader = $this->getRawHeader($name);
         if ($rawHeader === false) {
-            return false;
+            return null;
         }
 
         return $this->decodeHeader($rawHeader);
@@ -272,7 +271,7 @@ class Parser
      * @return array
      * @throws Exception
      */
-    public function getHeaders()
+    public function getHeaders(): iterable
     {
         if (isset($this->parts[1])) {
             $headers = $this->getPart('headers', $this->parts[1]);
@@ -300,7 +299,7 @@ class Parser
      * @return string
      * @throws Exception
      */
-    public function getHeadersRaw()
+    public function getHeadersRaw(): string
     {
         if (isset($this->parts[1])) {
             return $this->getPartHeader($this->parts[1]);
@@ -318,7 +317,7 @@ class Parser
      * @param $part Object
      * @throws Exception
      */
-    protected function getPartHeader(&$part)
+    protected function getPartHeader(&$part): string
     {
         $header = '';
         if ($this->stream) {
@@ -335,7 +334,7 @@ class Parser
      * @return String Mime Header Part
      * @param $part Array
      */
-    protected function getPartHeaderFromFile(&$part)
+    protected function getPartHeaderFromFile(&$part): string
     {
         $start = $part['starting-pos'];
         $end = $part['starting-pos-body'];
@@ -350,7 +349,7 @@ class Parser
      * @return String Mime Header Part
      * @param $part Array
      */
-    protected function getPartHeaderFromText(&$part)
+    protected function getPartHeaderFromText(&$part): string
     {
         $start = $part['starting-pos'];
         $end = $part['starting-pos-body'];
@@ -366,7 +365,7 @@ class Parser
      * @param string $parentPartId
      * @return bool
      */
-    protected function partIdIsChildOfPart($partId, $parentPartId)
+    protected function partIdIsChildOfPart($partId, $parentPartId): bool
     {
         $parentPartId = $parentPartId.'.';
         return substr($partId, 0, strlen($parentPartId)) == $parentPartId;
@@ -378,7 +377,7 @@ class Parser
      * @param string $checkPartId
      * @return bool
      */
-    protected function partIdIsChildOfAnAttachment($checkPartId)
+    protected function partIdIsChildOfAnAttachment($checkPartId): bool
     {
         foreach ($this->parts as $partId => $part) {
             if ($this->getPart('content-disposition', $part) == 'attachment') {
@@ -398,7 +397,7 @@ class Parser
      * @return string Body
      * @throws Exception
      */
-    public function getMessageBody($type = 'text')
+    public function getMessageBody(string $type = 'text'): string
     {
         $mime_types = [
             'text'         => 'text/plain',
@@ -439,7 +438,7 @@ class Parser
      *
      * @return string
      */
-    protected function getEmbeddedData(string $contentId)
+    protected function getEmbeddedData(string $contentId): string
     {
         $embeddedData = 'data:';
 
@@ -462,7 +461,7 @@ class Parser
      *
      * @return array
      */
-    public function getAddresses($name)
+    public function getAddresses(string $name): iterable
     {
         $value = $this->getRawHeader($name);
         $value = (is_array($value)) ? $value[0] : $value;
@@ -478,7 +477,7 @@ class Parser
      *
      * @return Attachment[]
      */
-    public function getInlineParts($type = 'text')
+    public function getInlineParts(string $type = 'text'): iterable
     {
         $inline_parts = [];
         $mime_types = [
@@ -511,7 +510,7 @@ class Parser
      *
      * @return Attachment[]
      */
-    public function getAttachments($include_inline = true)
+    public function getAttachments(bool $include_inline = true): iterable
     {
         $attachments = [];
         $dispositions = $include_inline ? ['attachment', 'inline'] : ['attachment'];
@@ -583,10 +582,10 @@ class Parser
      * @throws Exception
      */
     public function saveAttachments(
-        $attach_dir,
-        $include_inline = true,
-        $filenameStrategy = self::ATTACHMENT_DUPLICATE_SUFFIX
-    ) {
+        string $attach_dir,
+        bool $include_inline = true,
+        string $filenameStrategy = self::ATTACHMENT_DUPLICATE_SUFFIX
+    ): iterable {
         $attachments = $this->getAttachments($include_inline);
 
         $attachments_paths = [];
@@ -638,11 +637,11 @@ class Parser
      * Decode the string from Content-Transfer-Encoding
      *
      * @param string $encodedString The string in its original encoded state
-     * @param string $encodingType  The encoding type from the Content-Transfer-Encoding header of the part.
+     * @param string|array $encodingType  The encoding type from the Content-Transfer-Encoding header of the part.
      *
      * @return string The decoded string
      */
-    protected function decodeContentTransfer($encodedString, $encodingType)
+    protected function decodeContentTransfer(string $encodedString, $encodingType)
     {
         if (is_array($encodingType)) {
             $encodingType = $encodingType[0];
@@ -665,7 +664,7 @@ class Parser
      *
      * @return string
      */
-    protected function decodeHeader($input)
+    protected function decodeHeader($input): ?string
     {
         //Sometimes we have 2 label From so we take only the first
         if (is_array($input)) {
@@ -682,7 +681,7 @@ class Parser
      *
      * @return string
      */
-    protected function decodeSingleHeader($input)
+    protected function decodeSingleHeader(?string $input): ?string
     {
         // For each encoded-word...
         while (preg_match('/(=\?([^?]+)\?(q|b)\?([^?]*)\?=)((\s+)=\?)?/i', $input, $matches)) {
@@ -720,7 +719,7 @@ class Parser
      *
      * @return string
      */
-    protected function getPartCharset($part)
+    protected function getPartCharset($part): string
     {
         return $this->charset->getCharsetAlias($part['charset']);
     }
@@ -731,11 +730,11 @@ class Parser
      * @param string $type
      * @param array  $parts
      *
-     * @return string|array
+     * @return string|array|null
      */
     protected function getPart($type, $parts)
     {
-        return (isset($parts[$type])) ? $parts[$type] : false;
+        return isset($parts[$type]) ? $parts[$type] : null;
     }
 
     /**
@@ -745,7 +744,7 @@ class Parser
      *
      * @return string
      */
-    protected function getPartBody(&$part)
+    protected function getPartBody(&$part): string
     {
         $body = '';
         if ($this->stream) {
@@ -871,7 +870,7 @@ class Parser
      *
      * @return string|null data
      */
-    public function getData()
+    public function getData(): ?string
     {
         return $this->data;
     }
@@ -881,7 +880,7 @@ class Parser
      *
      * @return array parts
      */
-    public function getParts()
+    public function getParts(): iterable
     {
         return $this->parts;
     }
@@ -891,7 +890,7 @@ class Parser
      *
      * @return CharsetManager charset
      */
-    public function getCharset()
+    public function getCharset(): CharsetManager
     {
         return $this->charset;
     }
@@ -912,7 +911,7 @@ class Parser
      * @param callable $middleware Plain Function or Middleware Instance to execute
      * @return void
      */
-    public function addMiddleware(callable $middleware)
+    public function addMiddleware(callable $middleware): void
     {
         if (!$middleware instanceof Middleware) {
             $middleware = new Middleware($middleware);

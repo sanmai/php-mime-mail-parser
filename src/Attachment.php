@@ -10,7 +10,7 @@ use function var_dump;
  * Fully Tested Mailparse Extension Wrapper for PHP 5.4+
  *
  */
-class Attachment
+final class Attachment
 {
     /**
      * @var string $filename Filename

@@ -1160,7 +1160,7 @@ class ParserTest extends TestCase
         $this->assertArrayHasKey('to', $Parser->getHeaders());
 
         //Test Invalid Header
-        $this->assertFalse($Parser->getHeader('azerty'));
+        $this->assertNull($Parser->getHeader('azerty'));
         $this->assertArrayNotHasKey('azerty', $Parser->getHeaders());
 
         //Test Raw Headers
@@ -1289,7 +1289,7 @@ class ParserTest extends TestCase
         $this->assertArrayHasKey('to', $Parser->getHeaders());
 
         //Test Invalid Header
-        $this->assertFalse($Parser->getHeader('azerty'));
+        $this->assertNull($Parser->getHeader('azerty'));
         $this->assertArrayNotHasKey('azerty', $Parser->getHeaders());
 
         //Test Raw Headers
@@ -1420,7 +1420,7 @@ class ParserTest extends TestCase
         $this->assertArrayHasKey('to', $Parser->getHeaders());
 
         //Test Invalid Header
-        $this->assertFalse($Parser->getHeader('azerty'));
+        $this->assertNull($Parser->getHeader('azerty'));
         $this->assertArrayNotHasKey('azerty', $Parser->getHeaders());
 
         //Test Raw Headers
