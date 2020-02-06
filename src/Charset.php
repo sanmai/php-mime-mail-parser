@@ -36,6 +36,10 @@ final class Charset implements CharsetManager
         'iso-2022-cn-ext'          => 'iso-2022-cn',
         'iso-2022-kr'              => 'iso-2022-kr',
         'iso-2022-jp'              => 'iso-2022-jp',
+
+
+
+
         'utf-16be'                 => 'utf-16be',
         'utf-16le'                 => 'utf-16le',
         'utf-16'                   => 'utf-16',
@@ -308,14 +312,19 @@ final class Charset implements CharsetManager
         'x-gbk'                    => 'gbk',
         'windows-936'              => 'gbk',
         'ansi-1251'                => 'windows-1251',
+
+//          'iso-2022-jp'              => 'iso-2022-jp-ms',
+//         'iso-2022-jp-ms' => 'iso-2022-jp-ms',
+
     ];
 
     /**
      * {@inheritdoc}
      */
-    public function decodeCharset($encodedString, $charset)
+    public function decodeCharset($encodedString, $inputCharset)
     {
-        $charset = $this->getCharsetAlias($charset);
+        $charset = $this->getCharsetAlias($inputCharset);
+
 
         if ($charset == 'utf-8' || $charset == 'us-ascii') {
             return $encodedString;
@@ -345,26 +354,29 @@ final class Charset implements CharsetManager
             return $this->charsetAlias[$charset];
         }
 
+        //throw new \RuntimeException("$charset");
+
         return 'us-ascii';
     }
 
+    private static $allEncodings;
+
     private function getSupportedEncodings()
     {
-        return
-        array_map(
-            'strtolower',
-            array_unique(
-                array_merge(
-                    $enc = mb_list_encodings(),
-                    call_user_func_array(
-                        'array_merge',
-                        array_map(
-                            "mb_encoding_aliases",
-                            $enc
-                        )
-                    )
-                )
-            )
-        );
+        if (self::$allEncodings !== null) {
+            return self::$allEncodings;
+        }
+
+        self::$allEncodings = [];
+
+        foreach (mb_list_encodings() as $enc) {
+            self::$allEncodings[] = strtolower($enc);
+
+            foreach (mb_encoding_aliases($enc) as $alias) {
+                self::$allEncodings[] = strtolower($alias);
+            }
+        }
+
+        return self::$allEncodings;
     }
 }

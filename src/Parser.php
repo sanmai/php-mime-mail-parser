@@ -181,7 +181,7 @@ final class Parser implements ParserContract
      */
     public function setText(string $data): ParserContract
     {
-        if (empty($data)) {
+        if (strlen($data) === 0) {
             throw new Exception('You must not call MimeMailParser::setText with an empty string parameter');
         }
 
@@ -690,7 +690,7 @@ final class Parser implements ParserContract
                     break;
             }
 
-            $text = $this->charset->decodeCharset($text, $this->charset->getCharsetAlias($charset));
+            $text = $this->charset->decodeCharset($text, $charset);
             $input = str_replace($encoded.$space, $text, $input);
         }
 
