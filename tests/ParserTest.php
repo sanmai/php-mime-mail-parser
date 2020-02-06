@@ -1797,9 +1797,7 @@ variances available &nbsp;</div></body></html>'
         $this->assertTrue(isset($mimePart[0]) === false);
     }
 
-    public function testParsingFileWithoutEndOfLineFromText()
-    {
-        $file = 'From: mail@exemple.com
+    private const FILE_DATA_WITHOUT_EOL = 'From: mail@exemple.com
 To: mail@exemple.com, mail2@exemple3.com, mail3@exemple2.com
 Subject: =?windows-1251?Q?occurs_when_divided_into_an_array?=
  =?windows-1251?Q?=2C_and_the_last_e_of_the_array!_=CF=F3=F2?=
@@ -1809,56 +1807,35 @@ Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 
 mini plain body';
+
+    public function testParsingFileWithoutEndOfLineFromText()
+    {
+        $file = self::FILE_DATA_WITHOUT_EOL;
 
         $ParserByText = new Parser();
         $ParserByText->setText($file);
         $this->assertStringContainsString('mini plain body', $ParserByText->getMessageBody('text'));
-
-        $ParserByPath = new Parser();
-        $temp = tmpfile();
-        fwrite($temp, $file);
-        rewind($temp);
-        $metaDatas = stream_get_meta_data($temp);
-        $tmpFilename = $metaDatas['uri'];
-        $ParserByPath->setPath($tmpFilename);
-        $this->assertStringContainsString('mini plain body', $ParserByPath->getMessageBody('text'));
     }
 
     public function testParsingFileWithoutEndOfLineFromPath()
     {
-        $file = 'From: mail@exemple.com
-To: mail@exemple.com, mail2@exemple3.com, mail3@exemple2.com
-Subject: =?windows-1251?Q?occurs_when_divided_into_an_array?=
- =?windows-1251?Q?=2C_and_the_last_e_of_the_array!_=CF=F3=F2?=
- =?windows-1251?Q?=B3=ED_=F5=F3=E9=EB=EE!!!!!!?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        $emailDir = $this->tempdir('no_eol');
 
-mini plain body';
+        $tmpFilename = $emailDir.'test.eml';
+        file_put_contents($tmpFilename, self::FILE_DATA_WITHOUT_EOL);
+
+        $filesize = filesize($tmpFilename);
 
         $ParserByPath = new Parser();
-        $temp = tmpfile();
-        fwrite($temp, $file);
-        rewind($temp);
-        $metaDatas = stream_get_meta_data($temp);
-        $tmpFilename = $metaDatas['uri'];
         $ParserByPath->setPath($tmpFilename);
+
         $this->assertStringContainsString('mini plain body', $ParserByPath->getMessageBody('text'));
+        $this->assertSame($filesize, filesize($tmpFilename));
     }
 
     public function testParsingFileWithoutEndOfLineFromStream()
     {
-        $file = 'From: mail@exemple.com
-To: mail@exemple.com, mail2@exemple3.com, mail3@exemple2.com
-Subject: =?windows-1251?Q?occurs_when_divided_into_an_array?=
- =?windows-1251?Q?=2C_and_the_last_e_of_the_array!_=CF=F3=F2?=
- =?windows-1251?Q?=B3=ED_=F5=F3=E9=EB=EE!!!!!!?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-
-mini plain body';
+        $file = self::FILE_DATA_WITHOUT_EOL;
 
         $ParserByStream = new Parser();
         $temp = tmpfile();

@@ -110,14 +110,14 @@ class Parser
      */
     public function setPath($path)
     {
-        if (is_writable($path)) {
-            $file = fopen($path, 'a+');
-            fseek($file, -1, SEEK_END);
-            if (fread($file, 1) != "\n") {
-                fwrite($file, PHP_EOL);
-            }
-            fclose($file);
+        $file = fopen($path, 'r');
+        fseek($file, -1, SEEK_END);
+        if (fread($file, 1) != "\n") {
+            fseek($file, 0);
+            // MIME expects data to end with a new line, and setStream() will fix that for us
+            return $this->setStream($file);
         }
+        fclose($file);
 
         // should parse message incrementally from file
         $this->resource = mailparse_msg_parse_file($path);
@@ -147,9 +147,7 @@ class Parser
 
         $tmp_fp = self::tmpfile();
 
-        while (!feof($stream)) {
-            fwrite($tmp_fp, fread($stream, 2028));
-        }
+        stream_copy_to_stream($stream, $tmp_fp);
 
         if (fread($tmp_fp, 1) != "\n") {
             fwrite($tmp_fp, PHP_EOL);
