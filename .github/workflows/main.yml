@@ -68,4 +68,4 @@ jobs:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
 
       - name: Check code coverage
-        run: php vendor/bin/coverage-check coverage.xml 100
+        run: php vendor/bin/coverage-check build/logs/clover.xml 100
