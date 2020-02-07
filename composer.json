@@ -77,7 +77,7 @@
             "vendor/bin/phpunit"
         ],
         "test-with-coverage": [
-            "vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml"
+            "vendor/bin/phpunit --coverage-text --coverage-clover=build/logs/clover.xml"
         ]
     }
 }
