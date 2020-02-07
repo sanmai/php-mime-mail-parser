@@ -62,6 +62,9 @@ jobs:
         run: composer test-with-coverage
 
       - name: Upload code coverage
+        env:
+          COVERALLS_RUN_LOCALLY: 1
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         run: php vendor/bin/php-coveralls -v
 
       - name: Check code coverage
