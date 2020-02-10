@@ -17,6 +17,11 @@ use PhpMimeMailParser\Contracts\CharsetManager;
  */
 class ParserTest extends TestCase
 {
+    public function testMBString()
+    {
+        $this->assertFalse(function_exists('mb_convert_encoding'), "mbstring should not be loaded");
+    }
+
     /**
      * @dataProvider provideData
      */
